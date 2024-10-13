@@ -22,5 +22,8 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Install the required packages
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Set the port to 8000 by default, but allow it to be overridden
+ENV PORT=8000
+
 # Command to run the application
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
