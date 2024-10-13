@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Text Extraction and Summarization</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #uploadForm {
+            margin-bottom: 20px;
+        }
+        #extractedText, #summaryText {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 10px 0;
+            height: 200px;
+            overflow-y: auto;
+        }
+        button {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>PDF Text Extraction and Summarization</h1>
+
+<div id="uploadForm">
+    <input type="file" id="pdfFile" accept="application/pdf" />
+    <button id="uploadButton">Upload PDF</button>
+</div>
+
+<h2>Extracted Text:</h2>
+<div id="extractedText"></div>
+
+<h2>Summary:</h2>
+<div id="summaryText"></div>
+
+<script>
+    document.getElementById('uploadButton').onclick = async function() {
+        const fileInput = document.getElementById('pdfFile');
+        const file = fileInput.files[0];
+
+        if (!file) {
+            alert('Please select a PDF file to upload.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const response = await fetch('/extract-text/', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                // Display extracted text
+                document.getElementById('extractedText').innerText = data.extracted_text;
+
+                // Display summary
+                document.getElementById('summaryText').innerText = data.summary || 'No summary available.';
+            } else {
+                alert(data.error);
+            }
+        } catch (error) {
+            console.error('Error uploading the PDF:', error);
+        }
+    };
+</script>
+
+</body>
+</html>
