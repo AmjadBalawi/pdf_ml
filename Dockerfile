@@ -18,7 +18,7 @@ RUN python -m venv /opt/venv
 
 # Set the PATH to the virtual environment
 ENV PATH="/opt/venv/bin:$PATH"
-
+RUN pip install --upgrade pip
 # Install the required packages
 RUN pip install --no-cache-dir -r requirements.txt
 
