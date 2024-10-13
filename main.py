@@ -10,7 +10,7 @@ import fitz  # PyMuPDF
 from PIL import Image
 import os
 from transformers import pipeline  # Import Hugging Face summarization pipeline
-
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Disable GPU
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 
