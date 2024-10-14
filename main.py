@@ -168,15 +168,15 @@ async def extract_text(file: UploadFile = File(...)):
 
     pdf_path = f"temp_{file.filename}"
     try:
+        content = await file.read()  # Asynchronous file reading
         with open(pdf_path, "wb") as pdf_file:
-            content = await file.read()
             pdf_file.write(content)
 
         extracted_text = extract_text_from_pdf(pdf_path)
         os.remove(pdf_path)
 
         # Summarize the extracted text
-        summary = summarize_text(extracted_text)  # Ensure you have this function
+        summary = summarize_text(extracted_text)
 
         if extracted_text:
             return JSONResponse(content={
@@ -189,3 +189,4 @@ async def extract_text(file: UploadFile = File(...)):
     except Exception as e:
         logging.error(f"Error processing file: {str(e)}")
         return JSONResponse(content={"error": "An error occurred while processing the PDF."}, status_code=500)
+
