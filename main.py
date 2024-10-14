@@ -18,9 +18,9 @@ app = FastAPI()
 
 # Mount the static directory to serve HTML files
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
+model_name = "google-t5/t5-small"  # Specify your model
 # Load the Hugging Face summarization pipeline
-summarizer = pipeline("summarization")
+summarizer = pipeline("summarization", model=model_name)
 
 
 # Enhanced CRNN Model with BatchNorm and Dropout
