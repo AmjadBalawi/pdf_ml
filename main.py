@@ -1,8 +1,10 @@
 import os
-
-# Set environment variable to avoid using GPU
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # Disable GPU
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'   # Suppress INFO and WARNING messages
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'  # Disable oneDNN custom ops
+# Suppress TensorFlow warnings
+from transformers import logging as hf_logging
+hf_logging.set_verbosity_error()
 import tensorflow as tf
 from tensorflow.keras import layers, Model
 import cv2
@@ -16,8 +18,11 @@ from PIL import Image
 import os
 from transformers import pipeline  # Import Hugging Face summarization pipeline
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
+# Suppress TensorFlow warnings
+tf.get_logger().setLevel('ERROR')
+
+# Suppress Hugging Face transformer library warnings
+hf_logging.set_verbosity_error()
 
 app = FastAPI()
 
@@ -63,7 +68,7 @@ def build_advanced_crnn_model(input_shape=(32, 128, 1), num_classes=37):
     outputs = layers.Dense(num_classes, activation='softmax')(x)
 
     model = Model(inputs, outputs)
-    model.compile(optimizer='adam', loss='ctc_loss_function', metrics=['accuracy'])  # Use CTC loss
+    model.compile(optimizer='adam', loss=tf.compat.v1.losses.sparse_softmax_cross_entropy, metrics=['accuracy'])  # Use CTC loss
     return model
 
 
