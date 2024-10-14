@@ -23,7 +23,7 @@ Markdown==3.7
 markdown-it-py==3.0.0
 MarkupSafe==3.0.1
 mdurl==0.1.2
-ml-dtypes==0.4.1
+ml-dtypes==0.2.0  # Adjusted to match TensorFlow's requirement
 namex==0.0.8
 numpy==1.24.2  # You can specify the version you need
 opencv-python-headless==4.6.0.66
