@@ -150,7 +150,10 @@ def summarize_text(text: str, max_length: int = 100) -> str:
     """Summarize the extracted text using a pre-trained model."""
     summary = summarizer(text, max_length=max_length, min_length=30, do_sample=False)
     return summary[0]['summary_text']
-
+    
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
 
 # FastAPI routes
 @app.get("/", response_class=HTMLResponse)
