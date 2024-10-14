@@ -2,9 +2,10 @@ import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # Disable GPU
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'   # Suppress INFO and WARNING messages
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'  # Disable oneDNN custom ops
-# Suppress TensorFlow warnings
+
 from transformers import logging as hf_logging
 hf_logging.set_verbosity_error()
+
 import tensorflow as tf
 from tensorflow.keras import layers, Model
 import cv2
@@ -15,116 +16,80 @@ from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 import fitz  # PyMuPDF
 from PIL import Image
-import os
-from transformers import pipeline  # Import Hugging Face summarization pipeline
+from transformers import pipeline  # Hugging Face summarization pipeline
 
-# Suppress TensorFlow warnings
+# Suppress TensorFlow and Hugging Face warnings
 tf.get_logger().setLevel('ERROR')
-
-# Suppress Hugging Face transformer library warnings
 hf_logging.set_verbosity_error()
 
 app = FastAPI()
 
 # Mount the static directory to serve HTML files
 app.mount("/static", StaticFiles(directory="static"), name="static")
-model_name = "google-t5/t5-small"  # Specify your model
-# Load the Hugging Face summarization pipeline
+
+model_name = "google-t5/t5-small"  # Specify the summarization model
 summarizer = pipeline("summarization", model=model_name)
 
-
-# Enhanced CRNN Model with BatchNorm and Dropout
-def build_advanced_crnn_model(input_shape=(32, 128, 1), num_classes=37):
+# Optimized Lightweight CRNN Model
+def build_light_crnn_model(input_shape=(32, 128, 1), num_classes=37):
     inputs = layers.Input(shape=input_shape)
 
-    # Deeper Convolutional layers with Batch Normalization
-    x = layers.Conv2D(32, (3, 3), activation='relu', padding='same')(inputs)
-    x = layers.BatchNormalization()(x)
+    # Lightweight Convolutional layers
+    x = layers.Conv2D(16, (3, 3), activation='relu', padding='same')(inputs)
+    x = layers.MaxPooling2D(pool_size=(2, 2))(x)
+
+    x = layers.Conv2D(32, (3, 3), activation='relu', padding='same')(x)
     x = layers.MaxPooling2D(pool_size=(2, 2))(x)
 
     x = layers.Conv2D(64, (3, 3), activation='relu', padding='same')(x)
-    x = layers.BatchNormalization()(x)
-    x = layers.MaxPooling2D(pool_size=(2, 2))(x)
-
-    x = layers.Conv2D(128, (3, 3), activation='relu', padding='same')(x)
-    x = layers.BatchNormalization()(x)
-    x = layers.MaxPooling2D(pool_size=(2, 2))(x)
-
-    x = layers.Conv2D(256, (3, 3), activation='relu', padding='same')(x)
-    x = layers.BatchNormalization()(x)
     x = layers.MaxPooling2D(pool_size=(2, 2))(x)
 
     # Reshape for RNN input
-    new_shape = (input_shape[1] // 16, (input_shape[0] // 16) * 256)
+    new_shape = (input_shape[1] // 8, (input_shape[0] // 8) * 64)
     x = layers.Reshape(target_shape=new_shape)(x)
 
-    # Recurrent layers (Bidirectional LSTM) with Dropout
-    x = layers.Bidirectional(layers.LSTM(512, return_sequences=True))(x)
-    x = layers.Dropout(0.5)(x)
-    x = layers.Bidirectional(layers.LSTM(512, return_sequences=True))(x)
-    x = layers.Dropout(0.5)(x)
+    # Smaller Recurrent layers (Bidirectional LSTM)
+    x = layers.Bidirectional(layers.LSTM(128, return_sequences=True))(x)
+    x = layers.Bidirectional(layers.LSTM(128, return_sequences=True))(x)
 
     # Output layer
     outputs = layers.Dense(num_classes, activation='softmax')(x)
 
     model = Model(inputs, outputs)
-    model.compile(optimizer='adam', loss=tf.compat.v1.losses.sparse_softmax_cross_entropy, metrics=['accuracy'])  # Use CTC loss
+    model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
     return model
 
+# Build the lightweight CRNN model
+model = build_light_crnn_model()
 
-# Build the enhanced CRNN model
-model = build_advanced_crnn_model()
-
-# Character set and max label length
-characters = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()-_=+[]{};:'\"\\|,.<>?/`~ "
-max_text_length = 128
-
-
-# Enhanced Image Preprocessing Function
+# Preprocess the image for OCR
 def preprocess_image(img: np.ndarray) -> np.ndarray:
-    """Preprocess the image for the OCR model."""
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)  # Convert to grayscale
-
-    # Apply Gaussian Blur to remove noise
-    img = cv2.GaussianBlur(img, (5, 5), 0)
-
-    # Adaptive thresholding for binarization
-    img = cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                                cv2.THRESH_BINARY, 11, 2)
-
-    # Resize to match the model input size
-    img = cv2.resize(img, (128, 32))
-
-    # Normalize pixel values
-    img = img / 255.0
-
-    # Add channel and batch dimensions
-    img = np.expand_dims(img, axis=-1)
-    img = np.expand_dims(img, axis=0)
-
+    img = cv2.GaussianBlur(img, (5, 5), 0)  # Apply Gaussian Blur to remove noise
+    img = cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    img = cv2.resize(img, (128, 32))  # Resize to match model input
+    img = img / 255.0  # Normalize pixel values
+    img = np.expand_dims(img, axis=-1)  # Add channel dimension
+    img = np.expand_dims(img, axis=0)  # Add batch dimension
     return img
 
-
-# OCR Function using the enhanced CRNN model
+# Decode predictions from the model output
 def decode_predictions(predictions) -> str:
-    """Decode the predictions into readable text."""
     decoded = ""
     for pred in predictions:
         for p in pred:
-            if p < len(characters):  # Ensure index is within the valid character set
+            if p < len(characters):
                 decoded += characters[p]
     return decoded
 
-
+# Run OCR on an image
 def run_ocr(image: np.ndarray) -> str:
-    """Run OCR on the given image using TensorFlow."""
     preprocessed_image = preprocess_image(image)
     predictions = model.predict(preprocessed_image)
     decoded_text = decode_predictions(np.argmax(predictions, axis=-1))
     return decoded_text
 
-
-# Function to extract text from PDF using OCR and text extraction
+# Extract text from PDF using OCR and text extraction
 def extract_text_from_pdf(file_path: str) -> str:
     text = ""
     with fitz.open(file_path) as pdf_document:
@@ -144,22 +109,15 @@ def extract_text_from_pdf(file_path: str) -> str:
 
     return text.strip()
 
-
-# Summarization function using Hugging Face model
+# Summarize extracted text using Hugging Face model
 def summarize_text(text: str, max_length: int = 100) -> str:
-    """Summarize the extracted text using a pre-trained model."""
     summary = summarizer(text, max_length=max_length, min_length=30, do_sample=False)
     return summary[0]['summary_text']
-    
-@app.get("/health")
-async def health_check():
-    return {"status": "ok"}
 
 # FastAPI routes
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
     return open("static/index.html").read()
-
 
 @app.post("/extract-text/")
 async def extract_text(file: UploadFile = File(...)):
@@ -168,15 +126,14 @@ async def extract_text(file: UploadFile = File(...)):
 
     pdf_path = f"temp_{file.filename}"
     try:
-        content = await file.read()  # Asynchronous file reading
         with open(pdf_path, "wb") as pdf_file:
+            content = await file.read()
             pdf_file.write(content)
 
         extracted_text = extract_text_from_pdf(pdf_path)
         os.remove(pdf_path)
 
-        # Summarize the extracted text
-        summary = summarize_text(extracted_text)
+        summary = summarize_text(extracted_text)  # Summarize the extracted text
 
         if extracted_text:
             return JSONResponse(content={
@@ -189,4 +146,3 @@ async def extract_text(file: UploadFile = File(...)):
     except Exception as e:
         logging.error(f"Error processing file: {str(e)}")
         return JSONResponse(content={"error": "An error occurred while processing the PDF."}, status_code=500)
-
