@@ -11,6 +11,8 @@ from PIL import Image
 import os
 from transformers import pipeline  # Import Hugging Face summarization pipeline
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Disable GPU
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0" 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Suppress INFO messages
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 
