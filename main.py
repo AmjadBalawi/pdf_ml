@@ -1,18 +1,24 @@
-import tensorflow as tf
-from tensorflow.keras import layers, Model
-import cv2
-import numpy as np
+import os
 import logging
+import numpy as np
+import cv2
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from transformers import pipeline  # Import Hugging Face summarization pipeline
 import fitz  # PyMuPDF
 from PIL import Image
-import os
-from transformers import pipeline  # Import Hugging Face summarization pipeline
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Disable GPU
-os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0" 
+import tensorflow as tf
+from tensorflow.keras import layers, Model
+
+# Set environment variable to suppress TensorFlow logs
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Suppress INFO messages
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'  # Disable oneDNN operations
+
+# Check if CUDA is available
+if not tf.config.list_physical_devices('GPU'):
+    logging.warning("No GPU found. Falling back to CPU.")
+
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 
@@ -23,7 +29,6 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 model_name = "google-t5/t5-small"  # Specify your model
 # Load the Hugging Face summarization pipeline
 summarizer = pipeline("summarization", model=model_name)
-
 
 # Enhanced CRNN Model with BatchNorm and Dropout
 def build_advanced_crnn_model(input_shape=(32, 128, 1), num_classes=37):
