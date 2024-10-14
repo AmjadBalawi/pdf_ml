@@ -10,6 +10,7 @@ import fitz  # PyMuPDF
 from PIL import Image
 import tensorflow as tf
 from tensorflow.keras import layers, Model
+import traceback
 
 # Set environment variable to suppress TensorFlow logs
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Suppress INFO messages
@@ -170,7 +171,7 @@ async def extract_text(file: UploadFile = File(...)):
         os.remove(pdf_path)
 
         # Summarize the extracted text
-        summary = summarize_text(extracted_text)  # Ensure you have this function
+        summary = summarize_text(extracted_text)
 
         if extracted_text:
             return JSONResponse(content={
@@ -182,4 +183,5 @@ async def extract_text(file: UploadFile = File(...)):
 
     except Exception as e:
         logging.error(f"Error processing file: {str(e)}")
+        logging.error(traceback.format_exc())  # Log the full traceback
         return JSONResponse(content={"error": "An error occurred while processing the PDF."}, status_code=500)
