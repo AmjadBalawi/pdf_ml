@@ -1,24 +1,20 @@
 import os
-import logging
-import numpy as np
+
+# Set environment variable to avoid using GPU
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
+import tensorflow as tf
+from tensorflow.keras import layers, Model
 import cv2
+import numpy as np
+import logging
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from transformers import pipeline  # Import Hugging Face summarization pipeline
 import fitz  # PyMuPDF
 from PIL import Image
-import tensorflow as tf
-from tensorflow.keras import layers, Model
-import traceback
-
-# Set environment variable to suppress TensorFlow logs
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Suppress INFO messages
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'  # Disable oneDNN operations
-
-# Check if CUDA is available
-if not tf.config.list_physical_devices('GPU'):
-    logging.warning("No GPU found. Falling back to CPU.")
+import os
+from transformers import pipeline  # Import Hugging Face summarization pipeline
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -30,6 +26,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 model_name = "google-t5/t5-small"  # Specify your model
 # Load the Hugging Face summarization pipeline
 summarizer = pipeline("summarization", model=model_name)
+
 
 # Enhanced CRNN Model with BatchNorm and Dropout
 def build_advanced_crnn_model(input_shape=(32, 128, 1), num_classes=37):
@@ -171,7 +168,7 @@ async def extract_text(file: UploadFile = File(...)):
         os.remove(pdf_path)
 
         # Summarize the extracted text
-        summary = summarize_text(extracted_text)
+        summary = summarize_text(extracted_text)  # Ensure you have this function
 
         if extracted_text:
             return JSONResponse(content={
@@ -183,5 +180,4 @@ async def extract_text(file: UploadFile = File(...)):
 
     except Exception as e:
         logging.error(f"Error processing file: {str(e)}")
-        logging.error(traceback.format_exc())  # Log the full traceback
         return JSONResponse(content={"error": "An error occurred while processing the PDF."}, status_code=500)
